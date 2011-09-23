@@ -1,8 +1,8 @@
 <?php
 
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * This script needs to be updated by namespacing the functions
+* as is there could be function name conflicts with other drush scripts
  */
 
 //drush hook
