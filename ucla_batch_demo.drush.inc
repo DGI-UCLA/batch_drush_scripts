@@ -35,7 +35,7 @@ function ucla_batch_demo_drush_command() {
       'webserver_path_to_file' => 'The path relative to drupal host so Fedora can find the file (http://localhost/drupal/files)'
     ),
     'examples' => array(
-      'drush la_times_batch islandora:collection isMemberOfCollection /Applications/MAMP/htdocs/drupal/AIDS_posters http://localhost/drupal/AIDS_posters/',
+      'drush -u 1 --uri=http://164.67.30.146/drupal latimesbatch islandora:sp_large_image_collection isMemberOfCollection /var/www/html/drupal/sites/default/files/LA_Times_Sample_Set http://localhos',
     ),
     'aliases' => array('latimesbatch'),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN, // we can pass in users id on the command line using drush -u.
