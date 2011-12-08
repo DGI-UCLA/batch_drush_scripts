@@ -99,7 +99,7 @@ function la_times_create_object($orginal_file, $mods_file, $collection_pid, $rel
     if($returnValue =='0'){
       $object->add_datastream_from_file($orginal_file.'.jp2','JP2','JP2', 'image/jp2','M','added JP2 stream');
     }
-    exec("convert  -resize 800 \"{$orginal_file}\"[0]  \"$orginal_file-med.jpg\"", $output, $returnValue);
+    exec("convert  -resize '750x750' \"{$orginal_file}\"[0]  \"$orginal_file-med.jpg\"", $output, $returnValue);
     if($returnValue =='0'){
        $object->add_datastream_from_file($orginal_file.'-med.jpg','JPG','JPG', 'image/jpeg','M','added JPG stream');
     }
