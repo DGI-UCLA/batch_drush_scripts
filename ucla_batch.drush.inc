@@ -4,13 +4,14 @@
  * This script needs to be updated by namespacing the functions
  * as is there could be function name conflicts with other drush scripts
  * @todo: add logging before a full ingest is done
- * @todo: explore timeouts
  */
 
 //drush hook
-
-function drush_la_times_batch($collection_pid, $relationship, $input_path) {
+function drush_la_times_batch($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory) {
   module_load_include('inc', 'fedora_repository', 'CollectionClass');
+
+  drupal_set_time_limit(0); //this could be long so lets have infinite time on our hands
+
   drush_print('Current working directory ' . getcwd());
   if (isset($collection_pid)) {
     drush_print("\n Used collection pid of" . $collection_pid . "\n");
@@ -26,12 +27,16 @@ function drush_la_times_batch($collection_pid, $relationship, $input_path) {
     drush_print("\n no relationship specified");
     return;
   }
-  if (!isset($input_path)) {
-    drush_print("\n no output path specified");
+  if (!isset($tiff_input_directory)) {
+    drush_print("\n No image intput path specified.");
+    return;
+  }
+  if (!isset($mods_input_directory)) {
+    drush_print("\n No metadata intput path specified.");
     return;
   }
 
-  la_times_doAction($collection_pid, $relationship, $input_path);
+  la_times_doAction($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory);
 }
 
 /**
@@ -40,24 +45,38 @@ function drush_la_times_batch($collection_pid, $relationship, $input_path) {
  * @param <type> $relationship
  * @param <type> $input_path
  */
-function la_times_doAction($collection_pid, $relationship, $input_path) {
-  drush_print("input path = " . $input_path);
-  $files = array();
-  $dirs = scandir($input_path);
-  foreach ($dirs as $dir) {
-    if ($dir === '.' || $dir === '..') {
+function la_times_doAction($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory) {
+
+  drush_print("tiff input path = " . $tiff_input_directory);
+  drush_print("mods input path = " . $mods_input_directory);
+
+  $mods_files = array();
+  $tiff_files = array();
+  $mods_files = scandir($tiff_input_directory);
+  $tiff_files = scandir($mods_input_directory);
+
+  //loop through the mods files
+  foreach ($mods_files as $mods_file) {
+    if ($mods_file === '.' || $mods_file === '..') {
       continue;
     }
-    $files = scandir($input_path . "/" . $dir);
-    $path = $input_path . '/' . $dir . '/';
-    la_times_start_ingest($files, $path, $collection_pid, $relationship);
+    $tiff_file = Null;
+    $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4), $tiff_files);
+
+    if ($tiff_file) {
+      //find matching tiff file
+      $tiff_file_path = $tiff_input_directory . $tiff_file;
+      $mods_file_path = $mods_input_directory . $mods_file;
+
+      //run ingest on mods/tiff pair
+      la_times_create_object($tiff_file_path, $mods_file_path, $collection_pid, $relationship);
+    }
   }
 }
 
-function la_times_start_ingest($files, $path, $collection_pid,$relationship) {
-  $width = '100';
-  $height = '100';
-  $mods_file = $path . 'ExportMods.xml';
+function la_times_start_ingest($files, $path, $collection_pid, $relationship) {
+
+  $mods_file_path = $path . 'ExportMods.xml';
   foreach ($files as $file) {
     if ($file === '.' || $file === '..') {
       continue;
@@ -65,13 +84,16 @@ function la_times_start_ingest($files, $path, $collection_pid,$relationship) {
     else {
       drush_print('found file ' . $path . $file);
       if (endswith($file, ".tiff") || endswith($file, ".tif")) {
-        $orginal_file = $path . $file;
+        $tiff_file_path = $path . $file;
       }
     }
   }
-  la_times_create_object($orginal_file, $mods_file, $collection_pid, $relationship);
+  la_times_create_object($tiff_file_path, $mods_file_path, $collection_pid, $relationship);
 }
 
+/**
+ * This function ingests per an object
+ */
 function la_times_create_object($orginal_file, $mods_file, $collection_pid, $relationship) {
   module_load_include('inc', 'fedora_repository', 'api/fedora_item');
   $xml = simplexml_load_string(file_get_contents($mods_file));
@@ -131,18 +153,19 @@ function endswith($string, $test) {
 function ucla_batch_demo_drush_command() {
   $items = array();
 
-  $items['ucla_batch_demo'] = array(
+  $items['la_times_batch'] = array(
   'description' => "gets a list of files from a web accessible location and ingest them into Fedora.  This is currently hard coded to look for files that end with .tif and for each tif will log for a .xml and a .jpg and add these as datastreams",
   'arguments' => array(
   'collection_pid' => 'The pid of the collection object, this is the collection the new objects will be related to',
   'relationship' => 'The relationship the objects have to the collection object.  For example isMemberOf is a common relationship.',
-  'input_path' => 'The path to the files (absolute file system path, /var/www/http/drupal/sites/default/files).',
+  'tiff_input_directory' => 'The path to the tiff files (absolute file system path, /var/www/http/drupal/sites/default/files).',
+  'mods_input_directory' => 'The path to the mods files (absolute file system path, /var/www/http/drupal/sites/default/files).',
   'webserver_path_to_file' => 'The path relative to drupal host so Fedora can find the file (http://localhost/drupal/files)'
   ),
   'examples' => array(
-  'drush ucla_batch_demo islandora:collection isMemberOfCollection /Applications/MAMP/htdocs/drupal/AIDS_posters http://localhost/drupal/AIDS_posters/',
+  'drush ucla_la_times_ingest islandora:collection isMemberOfCollection /Applications/MAMP/htdocs/UCLA-LA-Times/latimes_images /Applications/MAMP/htdocs/UCLA-LA-Times/latimes_mods',
   ),
-  'aliases' => array('uclabatchdemo'),
+  'aliases' => array('latimesbatch'),
   'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN, // we can pass in users id on the command line using drush -u.
   );
 
