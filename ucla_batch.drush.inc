@@ -7,10 +7,10 @@
  */
 
 //drush hook
-function drush_la_times_batch($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory) {
+function drush_ucla_batch_la_times_batch($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory) {
+  drush_print('\n Checking input.');
   module_load_include('inc', 'fedora_repository', 'CollectionClass');
-
-  drupal_set_time_limit(0); //this could be long so lets have infinite time on our hands
+  set_time_limit(0); //this could be long so lets have infinite time on our hands
 
   drush_print('Current working directory ' . getcwd());
   if (isset($collection_pid)) {
@@ -47,48 +47,49 @@ function drush_la_times_batch($collection_pid, $relationship, $tiff_input_direct
  */
 function la_times_doAction($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory) {
 
-  drush_print("tiff input path = " . $tiff_input_directory);
-  drush_print("mods input path = " . $mods_input_directory);
+  drush_print('\n Starting ingest');
+  drush_print("\n Tiff input path = " . $tiff_input_directory);
+  drush_print("\n Mods input path = " . $mods_input_directory);
 
-  $mods_files = array();
+  $mods_directories = array();
   $tiff_files = array();
-  $mods_files = scandir($tiff_input_directory);
+  $mods_directories = scandir($tiff_input_directory);
   $tiff_files = scandir($mods_input_directory);
 
-  //loop through the mods files
-  foreach ($mods_files as $mods_file) {
-    if ($mods_file === '.' || $mods_file === '..') {
+  //loop through the mods directories, the acutal files are in subdirs
+  foreach ($mods_directories as $mods_directory) {
+    $mods_files = Null;
+    if ($mods_directory === '.' || $mods_directory === '..') {
       continue;
     }
-    $tiff_file = Null;
-    $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4), $tiff_files);
 
-    if ($tiff_file) {
-      //find matching tiff file
-      $tiff_file_path = $tiff_input_directory . $tiff_file;
-      $mods_file_path = $mods_input_directory . $mods_file;
+    //traverse the sub directories that have mods in them.
+    if (is_dir($mods_directory)) {
+      $mods_files = scandir($tiff_input_directory);
+      foreach ($mods_files as $mods_file) {
+        if ($mods_file === '.' || $mods_file === '..') {
+          continue;
+        }
 
-      //run ingest on mods/tiff pair
-      la_times_create_object($tiff_file_path, $mods_file_path, $collection_pid, $relationship);
-    }
-  }
-}
+        //handle both tiff and tif file extension. explitive naming conventions
+        $tiff_file = Null;
+        $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4). '.tif', $tiff_files);
 
-function la_times_start_ingest($files, $path, $collection_pid, $relationship) {
+        if (!$tiff_file) {
+          $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4). '.tiff', $tiff_files);
+        }
 
-  $mods_file_path = $path . 'ExportMods.xml';
-  foreach ($files as $file) {
-    if ($file === '.' || $file === '..') {
-      continue;
-    }
-    else {
-      drush_print('found file ' . $path . $file);
-      if (endswith($file, ".tiff") || endswith($file, ".tif")) {
-        $tiff_file_path = $path . $file;
+        if ($tiff_file) {
+          //find matching tiff file
+          $tiff_file_path = $tiff_input_directory . $tiff_file;
+          $mods_file_path = $mods_input_directory . $mods_file;
+
+          //run ingest on mods/tiff pair
+          la_times_create_object($tiff_file_path, $mods_file_path, $collection_pid, $relationship);
+        }
       }
     }
   }
-  la_times_create_object($tiff_file_path, $mods_file_path, $collection_pid, $relationship);
 }
 
 /**
@@ -150,7 +151,7 @@ function endswith($string, $test) {
   return substr_compare($string, $test, -$testlen) === 0;
 }
 
-function ucla_batch_demo_drush_command() {
+function ucla_batch_drush_command() {
   $items = array();
 
   $items['la_times_batch'] = array(
@@ -163,7 +164,7 @@ function ucla_batch_demo_drush_command() {
   'webserver_path_to_file' => 'The path relative to drupal host so Fedora can find the file (http://localhost/drupal/files)'
   ),
   'examples' => array(
-  'drush ucla_la_times_ingest islandora:collection isMemberOfCollection /Applications/MAMP/htdocs/UCLA-LA-Times/latimes_images /Applications/MAMP/htdocs/UCLA-LA-Times/latimes_mods',
+  'drush la_times_batch islandora:collection isMemberOfCollection /var/www/html/drupal/sites/default/files/UCLA-LA-Times/latimes_images /var/www/html/drupal/sites/default/files/UCLA-LA-Times/latimes_mods',
   ),
   'aliases' => array('latimesbatch'),
   'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN, // we can pass in users id on the command line using drush -u.
