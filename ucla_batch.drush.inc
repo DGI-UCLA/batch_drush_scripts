@@ -8,31 +8,31 @@
 
 //drush hook
 function drush_ucla_batch_la_times_batch($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory) {
-  drush_print('\n Checking input.');
+  drush_print('Checking input.');
   module_load_include('inc', 'fedora_repository', 'CollectionClass');
   set_time_limit(0); //this could be long so lets have infinite time on our hands
 
   drush_print('Current working directory ' . getcwd());
   if (isset($collection_pid)) {
-    drush_print("\n Used collection pid of" . $collection_pid . "\n");
+    drush_print("Used collection pid of " . $collection_pid);
   }
   else {
-    drush_print("no collection pid specified");
+    drush_print("No collection pid specified");
     return;
   }
   if (isset($relationship)) {
-    drush_print("\n and relationship of" . $relationship);
+    drush_print("and relationship of " . $relationship);
   }
   else {
-    drush_print("\n no relationship specified");
+    drush_print("No relationship specified");
     return;
   }
   if (!isset($tiff_input_directory)) {
-    drush_print("\n No image intput path specified.");
+    drush_print("No image intput path specified.");
     return;
   }
   if (!isset($mods_input_directory)) {
-    drush_print("\n No metadata intput path specified.");
+    drush_print("No metadata intput path specified.");
     return;
   }
 
@@ -47,25 +47,30 @@ function drush_ucla_batch_la_times_batch($collection_pid, $relationship, $tiff_i
  */
 function la_times_doAction($collection_pid, $relationship, $tiff_input_directory, $mods_input_directory) {
 
-  drush_print('\n Starting ingest');
-  drush_print("\n Tiff input path = " . $tiff_input_directory);
-  drush_print("\n Mods input path = " . $mods_input_directory);
+  drush_print('Starting ingest');
+  drush_print("Tiff input path: " . $tiff_input_directory);
+  drush_print("Mods input path: " . $mods_input_directory);
 
   $mods_directories = array();
   $tiff_files = array();
-  $mods_directories = scandir($tiff_input_directory);
-  $tiff_files = scandir($mods_input_directory);
+  $mods_directories = scandir($mods_input_directory);
+  $tiff_files = scandir($tiff_input_directory);
 
   //loop through the mods directories, the acutal files are in subdirs
   foreach ($mods_directories as $mods_directory) {
     $mods_files = Null;
+
     if ($mods_directory === '.' || $mods_directory === '..') {
       continue;
     }
 
+    //this dir path is a sub dir of $mods_input_directory
+    $mods_directory_path = $mods_input_directory . $mods_file;
+
     //traverse the sub directories that have mods in them.
-    if (is_dir($mods_directory)) {
-      $mods_files = scandir($tiff_input_directory);
+    if (is_dir($mods_directory_path)) {
+      drush_print('Searching for MODS in directory: ' . $mods_directory);
+      $mods_files = scandir($mods_directory_path);
       foreach ($mods_files as $mods_file) {
         if ($mods_file === '.' || $mods_file === '..') {
           continue;
@@ -82,7 +87,7 @@ function la_times_doAction($collection_pid, $relationship, $tiff_input_directory
         if ($tiff_file) {
           //find matching tiff file
           $tiff_file_path = $tiff_input_directory . $tiff_file;
-          $mods_file_path = $mods_input_directory . $mods_file;
+          $mods_file_path = $mods_directory_path . $mods_file;
 
           //run ingest on mods/tiff pair
           la_times_create_object($tiff_file_path, $mods_file_path, $collection_pid, $relationship);
@@ -160,11 +165,11 @@ function ucla_batch_drush_command() {
   'collection_pid' => 'The pid of the collection object, this is the collection the new objects will be related to',
   'relationship' => 'The relationship the objects have to the collection object.  For example isMemberOf is a common relationship.',
   'tiff_input_directory' => 'The path to the tiff files (absolute file system path, /var/www/http/drupal/sites/default/files).',
-  'mods_input_directory' => 'The path to the mods files (absolute file system path, /var/www/http/drupal/sites/default/files).',
+  'mods_input_directory' => 'The path to the mods files directories parent (absolute file system path, /var/www/http/drupal/sites/default/files).',
   'webserver_path_to_file' => 'The path relative to drupal host so Fedora can find the file (http://localhost/drupal/files)'
   ),
   'examples' => array(
-  'drush la_times_batch islandora:collection isMemberOfCollection /var/www/html/drupal/sites/default/files/UCLA-LA-Times/latimes_images /var/www/html/drupal/sites/default/files/UCLA-LA-Times/latimes_mods',
+  'drush -u 1 la_times_batch islandora:collection isMemberOfCollection /var/www/html/drupal/sites/default/files/UCLA-LA-Times/latimes_images /var/www/html/drupal/sites/default/files/UCLA-LA-Times/latimes_mods',
   ),
   'aliases' => array('latimesbatch'),
   'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN, // we can pass in users id on the command line using drush -u.
