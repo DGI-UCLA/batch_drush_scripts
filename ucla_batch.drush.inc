@@ -65,29 +65,33 @@ function la_times_doAction($collection_pid, $relationship, $tiff_input_directory
     }
 
     //this dir path is a sub dir of $mods_input_directory
-    $mods_directory_path = $mods_input_directory . $mods_file;
+    $mods_directory_path = $mods_input_directory . '/' . $mods_directory;
 
+    drush_print('subdir: ' . $mods_directory_path);
     //traverse the sub directories that have mods in them.
     if (is_dir($mods_directory_path)) {
       drush_print('Searching for MODS in directory: ' . $mods_directory);
       $mods_files = scandir($mods_directory_path);
+       drush_print('files in dir: ' . implode($mods_files));
       foreach ($mods_files as $mods_file) {
         if ($mods_file === '.' || $mods_file === '..') {
           continue;
         }
 
         //handle both tiff and tif file extension. explitive naming conventions
-        $tiff_file = Null;
-        $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4). '.tif', $tiff_files);
+        $tiff_file = FALSE;
+        $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4) . '.tif', $tiff_files);
+        drush_print('mods file name: ' . $mods_file);
+        drush_print('tiff file name: ' . substr($mods_file, 0, strlen($mods_file) - 4));
 
-        if (!$tiff_file) {
-          $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4). '.tiff', $tiff_files);
+        if ($tiff_file === FALSE) {
+          $tiff_file = array_search(substr($mods_file, 0, strlen($mods_file) - 4) . '.tiff', $tiff_files);
         }
 
-        if ($tiff_file) {
+        if ($tiff_file !== FALSE) {
           //find matching tiff file
-          $tiff_file_path = $tiff_input_directory . $tiff_file;
-          $mods_file_path = $mods_directory_path . $mods_file;
+          $tiff_file_path = $tiff_input_directory . '/' . $tiff_file;
+          $mods_file_path = $mods_directory_path . '/' . $mods_file;
 
           //run ingest on mods/tiff pair
           la_times_create_object($tiff_file_path, $mods_file_path, $collection_pid, $relationship);
@@ -101,6 +105,7 @@ function la_times_doAction($collection_pid, $relationship, $tiff_input_directory
  * This function ingests per an object
  */
 function la_times_create_object($orginal_file, $mods_file, $collection_pid, $relationship) {
+  drush_print('Ingesting: ' . $mods_file);
   module_load_include('inc', 'fedora_repository', 'api/fedora_item');
   $xml = simplexml_load_string(file_get_contents($mods_file));
   $xml->registerXPathNamespace('ns', "http://www.loc.gov/mods/v3");
